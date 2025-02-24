@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math';
 import 'package:excel/excel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -8,6 +7,7 @@ import 'package:open_file/open_file.dart';
 class ExcelService {
   File? _selectedFile;
   String? _fileName;
+  File? _updatedFile;
 
   String? get fileName => _fileName;
 
@@ -62,9 +62,9 @@ class ExcelService {
 
           if (cuttingSpeed > 0 && feedRate > 0 && depthOfCut > 0) {
             dataList.add({
-              "Cutting Speed": cuttingSpeed,
-              "Feed Rate": feedRate,
-              "Depth of Cut": depthOfCut,
+              "Cutting Speed (cs) (rpm)": cuttingSpeed,
+              "Feed Rate (fr) (mm/min)": feedRate,
+              "Depth of Cut (doc) (mm)": depthOfCut,
             });
           }
         }
@@ -96,16 +96,16 @@ class ExcelService {
 
       for (var row in processedData) {
         sheet.appendRow([
-          DoubleCellValue(row['Cutting Speed']!),
-          DoubleCellValue(row['Feed Rate']!),
-          DoubleCellValue(row['Depth of Cut']!),
-          DoubleCellValue(row['Surface Roughness']!),
-          DoubleCellValue(row['Tool Wear']!),
+          DoubleCellValue(row['Cutting Speed (cs) (rpm)']!),
+          DoubleCellValue(row['Feed Rate (fr) (mm/min)']!),
+          DoubleCellValue(row['Depth of Cut (doc) (mm)']!),
+          DoubleCellValue(row['Surface Roughness (µm)']!),
+          DoubleCellValue(row['Tool Wear (mm)']!),
         ]);
       }
 
-      final outputFile = await _saveExcelFile(excel);
-      await OpenFile.open(outputFile.path);
+      _updatedFile = await _saveExcelFile(excel);
+      await OpenFile.open(_updatedFile!.path); // Opens updated file immediately
     } catch (e) {
       throw Exception('Error processing Excel file: $e');
     }
@@ -121,39 +121,21 @@ class ExcelService {
         await getDownloadsDirectory() ?? await getTemporaryDirectory();
     final outputPath = '${directory.path}/updated_results.xlsx';
 
-    return await File(outputPath).writeAsBytes(outputBytes);
+    final file = File(outputPath);
+    await file.writeAsBytes(outputBytes);
+
+    return file;
   }
 
-  Future<List<Map<String, double>>> readExcel(String filePath) async {
-    var bytes = File(filePath).readAsBytesSync();
-    var excel = Excel.decodeBytes(bytes);
-    var sheet = excel.tables[excel.tables.keys.first]!;
-
-    List<String> headers = [];
-    List<Map<String, double>> data = [];
-
-    // Get headers from first row
-    for (var cell in sheet.row(0)) {
-      headers.add(cell?.value?.toString() ?? '');
+  Future<void> openUpdatedExcelFile() async {
+    if (_updatedFile == null) {
+      throw Exception('No updated file available');
     }
 
-    // Read data rows
-    for (var i = 1; i < sheet.maxRows; i++) {
-      var row = sheet.row(i);
-      Map<String, double> rowData = {};
-
-      for (var j = 0; j < headers.length; j++) {
-        var cellValue = row[j]?.value;
-        if (cellValue != null) {
-          rowData[headers[j]] = double.tryParse(cellValue.toString()) ?? 0.0;
-        }
-      }
-
-      if (rowData.isNotEmpty) {
-        data.add(rowData);
-      }
+    if (await _updatedFile!.exists()) {
+      await OpenFile.open(_updatedFile!.path);
+    } else {
+      throw Exception('Updated Excel file not found');
     }
-
-    return data;
   }
 }

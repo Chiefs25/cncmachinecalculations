@@ -12,10 +12,9 @@ class CalculationService {
       double feedRate = row["Feed Rate (fr) (mm/min)"] ?? 0.0;
       double depthOfCut = row["Depth of Cut (doc) (mm)"] ?? 0.0;
 
-      // Ensure valid inputs
       if (cuttingSpeed <= 0 || feedRate <= 0 || depthOfCut <= 0) continue;
 
-      // Corrected formulas (adjust as needed)
+      // Updated Correct Formulas (Ensure they match real-world calculations)
       double surfaceRoughness = (0.125 * feedRate * feedRate) / depthOfCut;
       double toolWear =
           (0.0003 * cuttingSpeed * cuttingSpeed * sqrt(feedRate)) /

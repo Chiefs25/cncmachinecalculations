@@ -1,119 +1,101 @@
 import 'package:flutter/material.dart';
-import 'package:cncmachinecalculations/services/excel_service.dart';
-import 'package:cncmachinecalculations/services/calculation_service.dart';
-import 'package:file_picker/file_picker.dart';
-import 'dart:io';
+import '../services/excel_service.dart';
+import '../services/calculation_service.dart';
 
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String? _filePath;
   final ExcelService _excelService = ExcelService();
-  final CalculationService _calculationService = CalculationService();
+  List<Map<String, double>> _processedResults = [];
+  Map<String, dynamic>? _leastSRData;
+  Map<String, dynamic>? _leastTWData;
 
-  Map<String, dynamic>? _leastSurfaceRoughness;
-  Map<String, dynamic>? _leastToolWear;
+  Future<void> _pickFile() async {
+    try {
+      List<Map<String, double>> data = await _excelService.pickAndReadExcel();
+      List<Map<String, double>> results = CalculationService.calculateResults(
+        data,
+      );
 
-  Future<void> _importExcel() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['xlsx'],
-    );
-    if (result != null) {
       setState(() {
-        _filePath = result.files.single.path;
+        _processedResults = results;
+        _leastSRData = CalculationService.findLeastValue(
+          results,
+          'Surface Roughness (µm)',
+        );
+        _leastTWData = CalculationService.findLeastValue(
+          results,
+          'Tool Wear (mm)',
+        );
       });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error processing file: $e')));
+      }
     }
   }
 
-  Future<void> _processExcel() async {
-    if (_filePath == null) {
+  Future<void> _downloadFile() async {
+    if (_processedResults.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Please import an Excel file first")),
+        const SnackBar(content: Text('No data to save. Process first.')),
       );
       return;
     }
 
-    var data = await _excelService.readExcel(_filePath!);
-    var results = _calculationService.processData(data);
-
-    setState(() {
-      _leastSurfaceRoughness = results['leastSurfaceRoughness'];
-      _leastToolWear = results['leastToolWear'];
-    });
-  }
-
-  void _openUpdatedExcel() {
-    if (_filePath != null) {
-      _excelService.openExcelFile(_filePath!);
+    try {
+      await _excelService.processAndOpenExcel(_processedResults);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error saving file: $e')));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("CNC Machine Calculations")),
+      appBar: AppBar(title: const Text('CNC Machine Calculations')),
       body: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ElevatedButton(
-              onPressed: _importExcel,
-              child: Text("Import Excel File"),
+              onPressed: _pickFile,
+              child: const Text('Import & Process Excel Sheet'),
             ),
-            if (_filePath != null) Text("File: ${_filePath!.split('/').last}"),
-            SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _processExcel,
-              child: Text("Process Excel File"),
-            ),
-            if (_leastSurfaceRoughness != null)
+            if (_excelService.fileName != null)
               Text(
-                "Least Surface Roughness: ${_leastSurfaceRoughness!['value']} (Inputs: ${_leastSurfaceRoughness!['inputs']})",
+                'File: ${_excelService.fileName}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-            if (_leastToolWear != null)
+            const SizedBox(height: 20),
+            if (_leastSRData != null)
               Text(
-                "Least Tool Wear: ${_leastToolWear!['value']} (Inputs: ${_leastToolWear!['inputs']})",
+                'Least Surface Roughness: ${_leastSRData!['leastValue']} at Cutting Speed: ${_leastSRData!['inputs']['Cutting Speed (cs) (rpm)']}, Feed Rate: ${_leastSRData!['inputs']['Feed Rate (fr) (mm/min)']}, Depth of Cut: ${_leastSRData!['inputs']['Depth of Cut (doc) (mm)']}',
               ),
-            SizedBox(height: 10),
+            if (_leastTWData != null)
+              Text(
+                'Least Tool Wear: ${_leastTWData!['leastValue']} at Cutting Speed: ${_leastTWData!['inputs']['Cutting Speed (cs) (rpm)']}, Feed Rate: ${_leastTWData!['inputs']['Feed Rate (fr) (mm/min)']}, Depth of Cut: ${_leastTWData!['inputs']['Depth of Cut (doc) (mm)']}',
+              ),
+            const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _openUpdatedExcel,
-              child: Text("Open Updated Excel File"),
+              onPressed: _downloadFile,
+              child: const Text('Download Updated Excel'),
             ),
           ],
         ),
       ),
     );
-  }
-}
-
-class ExcelService {
-  Future<List<Map<String, dynamic>>> readExcel(String filePath) async {
-    // Read Excel file logic here
-    return [];
-  }
-
-  void openExcelFile(String filePath) {
-    // Logic to open Excel file
-  }
-}
-
-class CalculationService {
-  Map<String, dynamic> processData(List<Map<String, dynamic>> data) {
-    // Processing logic here
-    return {
-      'leastSurfaceRoughness': {
-        'value': 0.1,
-        'inputs': {'speed': 100, 'feed': 0.5},
-      },
-      'leastToolWear': {
-        'value': 0.2,
-        'inputs': {'speed': 120, 'feed': 0.4},
-      },
-    };
   }
 }
