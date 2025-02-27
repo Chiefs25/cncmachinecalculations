@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cncmachinecalculations/screens/home_screen.dart';
+import 'package:cncmachinecalculations/screens/login_screen.dart';
 
 void main() {
   runApp(MyApp());
@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'CNC Machine Calculations',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: HomeScreen(),
+      home: LoginScreen(), // Start with LoginScreen
     );
   }
 }
