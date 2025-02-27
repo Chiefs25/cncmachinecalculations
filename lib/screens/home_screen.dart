@@ -1,97 +1,223 @@
 import 'package:flutter/material.dart';
-import '../services/excel_service.dart';
-import '../services/calculation_service.dart';
+import 'package:cncmachinecalculations/services/excel_service.dart';
+import 'package:cncmachinecalculations/services/calculation_service.dart';
+import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final String email;
+  const HomeScreen({super.key, required this.email});
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final ExcelService _excelService = ExcelService();
-  List<Map<String, double>> _processedResults = [];
-  Map<String, dynamic>? _leastSRData;
-  Map<String, dynamic>? _leastTWData;
+  String? fileName;
+  String? savedFilePath;
+  List<Map<String, double>>? processedData;
+  Map<String, dynamic>? leastSurfaceRoughness;
+  Map<String, dynamic>? leastToolWear;
 
-  Future<void> _pickFile() async {
+  /// Import Excel File
+  void _importExcel() async {
     try {
-      List<Map<String, double>> data = await _excelService.pickAndReadExcel();
-      List<Map<String, double>> results = CalculationService.calculateResults(
-        data,
-      );
+      final inputData = await ExcelService().pickAndReadExcel();
+      if (inputData == null) return;
 
       setState(() {
-        _processedResults = results;
-        _leastSRData = CalculationService.findLeastValue(
-          results,
-          'Surface Roughness (µm)',
+        fileName = ExcelService().fileName;
+        processedData = inputData;
+        leastSurfaceRoughness = CalculationService.findLeastValue(
+          inputData,
+          "Surface Roughness (µm)",
         );
-        _leastTWData = CalculationService.findLeastValue(
-          results,
-          'Tool Wear (mm)',
+        leastToolWear = CalculationService.findLeastValue(
+          inputData,
+          "Tool Wear (mm)",
         );
       });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Excel imported successfully")),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error processing file: $e')));
-      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error importing Excel: $e")));
     }
   }
 
-  Future<void> _downloadFile() async {
-    if (_processedResults.isEmpty) {
+  /// Process Excel File
+  void _processExcel() async {
+    if (processedData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No data to save. Process first.')),
+        const SnackBar(content: Text("Please import an Excel file first")),
+      );
+      return;
+    }
+
+    final results = CalculationService.calculateResults(processedData!);
+    setState(() {
+      processedData = results;
+      leastSurfaceRoughness = CalculationService.findLeastValue(
+        results,
+        "Surface Roughness (µm)",
+      );
+      leastToolWear = CalculationService.findLeastValue(
+        results,
+        "Tool Wear (mm)",
+      );
+    });
+
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final filePath = '${directory.path}/processed_file.xlsx';
+
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+      }
+
+      final success = await ExcelService().saveExcel(results, filePath);
+      if (success) {
+        setState(() {
+          savedFilePath = filePath;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Excel saved successfully at: $filePath")),
+        );
+      } else {
+        throw Exception("Failed to save the Excel file.");
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error processing Excel: $e")));
+    }
+  }
+
+  /// Download & Open Processed Excel File
+  void _downloadExcel() async {
+    if (savedFilePath == null || !File(savedFilePath!).existsSync()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No processed file available")),
       );
       return;
     }
 
     try {
-      await _excelService.processAndOpenExcel(_processedResults);
+      await OpenFile.open(savedFilePath!);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving file: $e')));
-      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error opening file: $e")));
     }
+  }
+
+  /// Logout Function
+  void _logout() {
+    Navigator.pushReplacementNamed(context, "/login");
+  }
+
+  /// Navigate to My Details
+  void _navigateToMyDetails() {
+    Navigator.pushNamed(context, "/myDetails");
+  }
+
+  /// Navigate to History
+  void _navigateToHistory() {
+    Navigator.pushNamed(context, "/history");
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('CNC Machine Calculations')),
+      appBar: AppBar(
+        title: const Text("Home"),
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == "My Details") _navigateToMyDetails();
+              if (value == "History") _navigateToHistory();
+              if (value == "Logout") _logout();
+            },
+            itemBuilder:
+                (context) => [
+                  const PopupMenuItem(
+                    value: "My Details",
+                    child: Text("My Details"),
+                  ),
+                  const PopupMenuItem(value: "History", child: Text("History")),
+                  const PopupMenuItem(value: "Logout", child: Text("Logout")),
+                ],
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ElevatedButton(
-              onPressed: _pickFile,
-              child: const Text('Import & Process Excel Sheet'),
+            Text(
+              "Welcome, ${widget.email}",
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            if (_excelService.fileName != null)
-              Text(
-                'File: ${_excelService.fileName}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
             const SizedBox(height: 20),
-            if (_leastSRData != null)
-              Text(
-                'Least Surface Roughness: ${_leastSRData!['leastValue']} at Cutting Speed: ${_leastSRData!['inputs']['Cutting Speed (cs) (rpm)']}, Feed Rate: ${_leastSRData!['inputs']['Feed Rate (fr) (mm/min)']}, Depth of Cut: ${_leastSRData!['inputs']['Depth of Cut (doc) (mm)']}',
-              ),
-            if (_leastTWData != null)
-              Text(
-                'Least Tool Wear: ${_leastTWData!['leastValue']} at Cutting Speed: ${_leastTWData!['inputs']['Cutting Speed (cs) (rpm)']}, Feed Rate: ${_leastTWData!['inputs']['Feed Rate (fr) (mm/min)']}, Depth of Cut: ${_leastTWData!['inputs']['Depth of Cut (doc) (mm)']}',
-              ),
-            const SizedBox(height: 20),
+
             ElevatedButton(
-              onPressed: _downloadFile,
-              child: const Text('Download Updated Excel'),
+              onPressed: _importExcel,
+              child: const Text("Import Excel File"),
+            ),
+            if (fileName != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  "File: $fileName",
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ),
+
+            const SizedBox(height: 10),
+
+            ElevatedButton(
+              onPressed: _processExcel,
+              child: const Text("Process Excel File"),
+            ),
+
+            if (leastSurfaceRoughness != null && leastToolWear != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                "Least Surface Roughness: ${leastSurfaceRoughness!['leastValue']} µm",
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                "Inputs (cs, fr, doc): ${leastSurfaceRoughness!['inputs']}",
+                style: const TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "Least Tool Wear: ${leastToolWear!['leastValue']} mm",
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                "Inputs (cs, fr, doc): ${leastToolWear!['inputs']}",
+                style: const TextStyle(fontSize: 14),
+              ),
+            ],
+
+            const SizedBox(height: 10),
+
+            ElevatedButton(
+              onPressed: _downloadExcel,
+              child: const Text("Download Updated Excel"),
             ),
           ],
         ),
