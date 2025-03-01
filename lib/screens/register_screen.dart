@@ -12,13 +12,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController nameController = TextEditingController();
+  final TextEditingController regNoController = TextEditingController();
+  final TextEditingController sectionController =
+      TextEditingController(); // ✅ Added Section Controller
 
   void _register() async {
+    String name = nameController.text.trim();
+    String regNo = regNoController.text.trim();
+    String section = sectionController.text.trim(); // ✅ Added Section
     String email = emailController.text.trim();
     String password = passwordController.text;
-    String name = nameController.text.trim();
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+    if (name.isEmpty ||
+        regNo.isEmpty ||
+        section.isEmpty ||
+        email.isEmpty ||
+        password.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('All fields are required')));
@@ -35,7 +44,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     if (!RegExp(
-      r"^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\$%^&*]).{6,}$",
+      r"^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#\\$%^&*]).{6,}$",
     ).hasMatch(password)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -55,7 +64,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    await DatabaseHelper.instance.insertUser(name, email, password);
+    await DatabaseHelper.instance.insertUser(
+      name,
+      regNo,
+      email,
+      password,
+      section,
+      'password',
+    ); // ✅ Added Section
 
     ScaffoldMessenger.of(
       context,
@@ -75,6 +91,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
             TextField(
               controller: nameController,
               decoration: const InputDecoration(labelText: 'Name'),
+            ),
+            TextField(
+              controller: regNoController,
+              decoration: const InputDecoration(
+                labelText: 'Registration Number',
+              ),
+            ),
+            TextField(
+              controller: sectionController, // ✅ Section Input
+              decoration: const InputDecoration(labelText: 'Section'),
             ),
             TextField(
               controller: emailController,

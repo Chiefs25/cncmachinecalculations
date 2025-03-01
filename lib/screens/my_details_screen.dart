@@ -12,6 +12,8 @@ class MyDetailsScreen extends StatefulWidget {
 
 class _MyDetailsScreenState extends State<MyDetailsScreen> {
   final TextEditingController nameController = TextEditingController();
+  final TextEditingController regNoController = TextEditingController();
+  final TextEditingController sectionController = TextEditingController();
 
   @override
   void initState() {
@@ -23,16 +25,50 @@ class _MyDetailsScreenState extends State<MyDetailsScreen> {
     var user = await DatabaseHelper.instance.getLoggedInUser(widget.email);
     if (user != null) {
       setState(() {
-        nameController.text = user['name'];
+        nameController.text = user['name'] ?? '';
+        regNoController.text = user['regno'] ?? '';
+        sectionController.text = user['section'] ?? '';
       });
+    } else {
+      print("❌ User not found in database: ${widget.email}");
     }
   }
 
-  void _updateDetails() async {
-    // For now, just show a message. Implement DB update logic if needed.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('User details updated successfully!')),
+  Future<void> _updateDetails() async {
+    String newName = nameController.text.trim();
+    String newRegNo = regNoController.text.trim();
+    String newSection = sectionController.text.trim();
+
+    if (newName.isEmpty || newRegNo.isEmpty || newSection.isEmpty) {
+      _showSnackBar('Fields cannot be empty!');
+      return;
+    }
+
+    // ✅ Ensure the user exists before updating
+    var user = await DatabaseHelper.instance.getLoggedInUser(widget.email);
+    if (user == null) {
+      _showSnackBar('User not found! Please register first.');
+      return;
+    }
+
+    int result = await DatabaseHelper.instance.updateUserDetails(
+      widget.email,
+      newName,
+      newRegNo,
+      newSection,
     );
+
+    if (result > 0) {
+      _showSnackBar('User details updated successfully!');
+    } else {
+      _showSnackBar('Failed to update details!');
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -46,6 +82,18 @@ class _MyDetailsScreenState extends State<MyDetailsScreen> {
             TextField(
               controller: nameController,
               decoration: const InputDecoration(labelText: 'Name'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: regNoController,
+              decoration: const InputDecoration(
+                labelText: 'Registration Number',
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: sectionController,
+              decoration: const InputDecoration(labelText: 'Section'),
             ),
             const SizedBox(height: 20),
             ElevatedButton(

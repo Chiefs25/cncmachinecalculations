@@ -20,11 +20,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? leastSurfaceRoughness;
   Map<String, dynamic>? leastToolWear;
 
-  /// Import Excel File
   void _importExcel() async {
     try {
       final inputData = await ExcelService().pickAndReadExcel();
-      if (inputData == null) return;
 
       setState(() {
         fileName = ExcelService().fileName;
@@ -43,18 +41,13 @@ class _HomeScreenState extends State<HomeScreen> {
         const SnackBar(content: Text("Excel imported successfully")),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error importing Excel: $e")));
+      _showError("Error importing Excel: $e");
     }
   }
 
-  /// Process Excel File
   void _processExcel() async {
     if (processedData == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please import an Excel file first")),
-      );
+      _showError("Please import an Excel file first");
       return;
     }
 
@@ -74,17 +67,14 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final directory = await getApplicationDocumentsDirectory();
       final filePath = '${directory.path}/processed_file.xlsx';
-
       if (!await directory.exists()) {
         await directory.create(recursive: true);
       }
-
       final success = await ExcelService().saveExcel(results, filePath);
       if (success) {
         setState(() {
           savedFilePath = filePath;
         });
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Excel saved successfully at: $filePath")),
         );
@@ -92,43 +82,43 @@ class _HomeScreenState extends State<HomeScreen> {
         throw Exception("Failed to save the Excel file.");
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error processing Excel: $e")));
+      _showError("Error processing Excel: $e");
     }
   }
 
-  /// Download & Open Processed Excel File
   void _downloadExcel() async {
     if (savedFilePath == null || !File(savedFilePath!).existsSync()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No processed file available")),
-      );
+      _showError("No processed file available");
       return;
     }
 
     try {
       await OpenFile.open(savedFilePath!);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error opening file: $e")));
+      _showError("Error opening file: $e");
     }
   }
 
-  /// Logout Function
   void _logout() {
     Navigator.pushReplacementNamed(context, "/login");
   }
 
-  /// Navigate to My Details
   void _navigateToMyDetails() {
     Navigator.pushNamed(context, "/myDetails");
   }
 
-  /// Navigate to History
   void _navigateToHistory() {
-    Navigator.pushNamed(context, "/history");
+    Navigator.pushNamed(
+      context,
+      "/history",
+      arguments: {'email': widget.email},
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -165,56 +155,25 @@ class _HomeScreenState extends State<HomeScreen> {
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
-
             ElevatedButton(
               onPressed: _importExcel,
               child: const Text("Import Excel File"),
             ),
             if (fileName != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text(
-                  "File: $fileName",
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ),
-
+              Text("File: $fileName", style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 10),
-
             ElevatedButton(
               onPressed: _processExcel,
               child: const Text("Process Excel File"),
             ),
-
             if (leastSurfaceRoughness != null && leastToolWear != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                "Least Surface Roughness: ${leastSurfaceRoughness!['leastValue']} µm",
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+              _buildResultText(
+                "Least Surface Roughness",
+                leastSurfaceRoughness,
               ),
-              Text(
-                "Inputs (cs, fr, doc): ${leastSurfaceRoughness!['inputs']}",
-                style: const TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                "Least Tool Wear: ${leastToolWear!['leastValue']} mm",
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                "Inputs (cs, fr, doc): ${leastToolWear!['inputs']}",
-                style: const TextStyle(fontSize: 14),
-              ),
+              _buildResultText("Least Tool Wear", leastToolWear),
             ],
-
             const SizedBox(height: 10),
-
             ElevatedButton(
               onPressed: _downloadExcel,
               child: const Text("Download Updated Excel"),
@@ -222,6 +181,23 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildResultText(String label, Map<String, dynamic>? data) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "$label: ${data!['leastValue']}",
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        Text(
+          "Inputs (cs, fr, doc): ${data['inputs']}",
+          style: const TextStyle(fontSize: 14),
+        ),
+        const SizedBox(height: 10),
+      ],
     );
   }
 }

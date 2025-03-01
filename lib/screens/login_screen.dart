@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cncmachinecalculations/services/database_helper.dart';
-import 'home_screen.dart';
-import 'register_screen.dart';
-import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,24 +18,31 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter email and password')),
+        const SnackBar(content: Text('Please enter both email and password')),
       );
       return;
     }
 
-    bool isValid = await DatabaseHelper.instance.validateUser(email, password);
-    if (isValid) {
-      Navigator.pushReplacement(
+    final user = await DatabaseHelper.instance.getUser(email);
+    if (user != null && user['password'] == password) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Login Successful')),
+      );
+
+      Navigator.pushReplacementNamed(
         context,
-        MaterialPageRoute(
-          builder: (context) => HomeScreen(email: email),
-        ), // Pass email
+        '/home',
+        arguments: {'email': email},
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invalid email or password')),
       );
     }
+  }
+
+  void _navigateToRegister() {
+    Navigator.pushNamed(context, '/register');
   }
 
   @override
@@ -48,11 +52,11 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextField(
               controller: emailController,
               decoration: const InputDecoration(labelText: 'Email'),
-              keyboardType: TextInputType.emailAddress,
             ),
             TextField(
               controller: passwordController,
@@ -62,26 +66,8 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 20),
             ElevatedButton(onPressed: _login, child: const Text('Login')),
             TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const RegisterScreen(),
-                  ),
-                );
-              },
-              child: const Text("Don't have an account? Register"),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ForgotPasswordScreen(),
-                  ),
-                );
-              },
-              child: const Text("Forgot Password?"),
+              onPressed: _navigateToRegister,
+              child: const Text('Don’t have an account? Register here'),
             ),
           ],
         ),

@@ -138,4 +138,39 @@ class ExcelService {
       throw Exception('Updated Excel file not found');
     }
   }
+
+  /// **Fix: Implement `saveExcel` method**
+  Future<bool> saveExcel(List<Map<String, double>> results, String filePath) async {
+    try {
+      final excel = Excel.createExcel();
+      final sheet = excel['Sheet1'];
+
+      // Add headers
+      sheet.appendRow([
+        'Cutting Speed (cs) (rpm)',
+        'Feed Rate (fr) (mm/min)',
+        'Depth of Cut (doc) (mm)',
+        'Surface Roughness (µm)',
+        'Tool Wear (mm)',
+      ].map((v) => TextCellValue(v)).toList());
+
+      // Add data
+      for (var row in results) {
+        sheet.appendRow([
+          DoubleCellValue(row['Cutting Speed (cs) (rpm)']!),
+          DoubleCellValue(row['Feed Rate (fr) (mm/min)']!),
+          DoubleCellValue(row['Depth of Cut (doc) (mm)']!),
+          DoubleCellValue(row['Surface Roughness (µm)']!),
+          DoubleCellValue(row['Tool Wear (mm)']!),
+        ]);
+      }
+
+      final file = File(filePath);
+      await file.writeAsBytes(excel.encode()!);
+      return true;
+    } catch (e) {
+      print("Error saving Excel file: $e");
+      return false;
+    }
+  }
 }
