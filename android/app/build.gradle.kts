@@ -1,6 +1,6 @@
 plugins {
     id("com.android.application")
-    id("dev.flutter.flutter-gradle-plugin") // Flutter plugin should be applied before Kotlin
+    id("dev.flutter.flutter-gradle-plugin") // Flutter plugin should be applied first
     id("kotlin-android")
 }
 
@@ -16,7 +16,7 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = "11"  // Ensuring proper JVM target
     }
 
     defaultConfig {
@@ -30,11 +30,10 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true  // Enables code shrinking, obfuscation
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                file("proguard-rules.pro") // Ensures correct reference
             )
         }
     }

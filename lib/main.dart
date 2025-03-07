@@ -5,6 +5,10 @@ import 'package:cncmachinecalculations/screens/home_screen.dart';
 import 'package:cncmachinecalculations/screens/history_screen.dart';
 import 'package:cncmachinecalculations/screens/my_details_screen.dart';
 import 'package:cncmachinecalculations/services/database_helper.dart';
+import 'package:flutter/material.dart';
+import 'package:cncmachinecalculations/screens/login_screen.dart';
+import 'package:cncmachinecalculations/screens/register_screen.dart';
+import 'package:cncmachinecalculations/screens/forgot_password_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

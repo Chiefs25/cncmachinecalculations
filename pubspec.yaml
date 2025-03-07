@@ -21,6 +21,7 @@ dependencies:
   # UI & Notifications
   fluttertoast: ^8.2.4
   cupertino_icons: ^1.0.8
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:

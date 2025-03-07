@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cncmachinecalculations/services/database_helper.dart';
+import 'package:cncmachinecalculations/screens/home_screen.dart';
+import 'package:cncmachinecalculations/screens/forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,8 +13,13 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  bool isLoading = false;
 
   void _login() async {
+    setState(() {
+      isLoading = true;
+    });
+
     String email = emailController.text.trim();
     String password = passwordController.text;
 
@@ -20,29 +27,50 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter both email and password')),
       );
+      setState(() {
+        isLoading = false;
+      });
       return;
     }
 
-    final user = await DatabaseHelper.instance.getUser(email);
-    if (user != null && user['password'] == password) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login Successful')),
-      );
-
-      Navigator.pushReplacementNamed(
+    var user = await DatabaseHelper.instance.getLoggedInUser(email);
+    if (user == null) {
+      ScaffoldMessenger.of(
         context,
-        '/home',
-        arguments: {'email': email},
+      ).showSnackBar(const SnackBar(content: Text('User not registered.')));
+      setState(() {
+        isLoading = false;
+      });
+      return;
+    }
+
+    bool isValid = await DatabaseHelper.instance.validateUser(email, password);
+
+    setState(() {
+      isLoading = false;
+    });
+
+    if (isValid) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => HomeScreen(email: email)),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid email or password')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Invalid password')));
     }
   }
 
   void _navigateToRegister() {
     Navigator.pushNamed(context, '/register');
+  }
+
+  void _navigateToForgotPassword() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+    );
   }
 
   @override
@@ -56,18 +84,54 @@ class _LoginScreenState extends State<LoginScreen> {
           children: [
             TextField(
               controller: emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.email),
+              ),
+              keyboardType: TextInputType.emailAddress,
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
+              decoration: const InputDecoration(
+                labelText: 'Password',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.lock),
+              ),
               obscureText: true,
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(onPressed: _login, child: const Text('Login')),
-            TextButton(
-              onPressed: _navigateToRegister,
-              child: const Text('Don’t have an account? Register here'),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: isLoading ? null : _login,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child:
+                    isLoading
+                        ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                        : const Text('Login', style: TextStyle(fontSize: 16)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: _navigateToRegister,
+                  child: const Text('Register'),
+                ),
+                TextButton(
+                  onPressed: _navigateToForgotPassword,
+                  child: const Text('Forgot Password?'),
+                ),
+              ],
             ),
           ],
         ),
