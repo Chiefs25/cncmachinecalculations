@@ -62,6 +62,17 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // Guest login function
+  void _loginAsGuest() {
+    // Navigate to the home screen with a predefined guest email
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => HomeScreen(email: 'guest@user.com'),
+      ),
+    );
+  }
+
   void _navigateToRegister() {
     Navigator.pushNamed(context, '/register');
   }
@@ -117,6 +128,21 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                         : const Text('Login', style: TextStyle(fontSize: 16)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Guest login button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: _loginAsGuest,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text(
+                  'Continue as Guest',
+                  style: TextStyle(fontSize: 16),
+                ),
               ),
             ),
             const SizedBox(height: 12),

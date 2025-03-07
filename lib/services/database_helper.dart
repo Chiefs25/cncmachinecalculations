@@ -19,7 +19,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 3, // Incremented version for migration
+      version: 3, // ✅ Incremented version for migration
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE users (
@@ -28,7 +28,7 @@ class DatabaseHelper {
             regno TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
             password TEXT,
-            section TEXT,  -- Added Section field
+            section TEXT,  -- ✅ Added Section field
             auth_type TEXT NOT NULL DEFAULT 'password'
           )
         ''');
@@ -44,36 +44,31 @@ class DatabaseHelper {
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 3) {
-          // Add `section` column for existing users during migration
+          // ✅ Add `section` column for existing users during migration
           await db.execute("ALTER TABLE users ADD COLUMN section TEXT");
         }
       },
     );
   }
 
-  /// Check if user exists
+  /// ✅ **Check if user exists**
   Future<bool> userExists(String email) async {
-    try {
-      final db = await database;
-      final result = await db.query(
-        'users',
-        where: 'email = ?',
-        whereArgs: [email],
-      );
-      return result.isNotEmpty;
-    } catch (e) {
-      print('Error checking if user exists: $e');
-      return false;
-    }
+    final db = await database;
+    final result = await db.query(
+      'users',
+      where: 'email = ?',
+      whereArgs: [email],
+    );
+    return result.isNotEmpty;
   }
 
-  /// Insert a new user (with Section)
+  /// ✅ **Insert a new user (with Section)**
   Future<void> insertUser(
     String name,
     String regno,
     String email,
     String? password,
-    String section, // Added section parameter
+    String section, // ✅ Added section parameter
     String authType,
   ) async {
     final db = await database;
@@ -82,13 +77,13 @@ class DatabaseHelper {
       'regno': regno,
       'email': email,
       'password': password,
-      'section': section, // Store section in DB
+      'section': section, // ✅ Store section in DB
       'auth_type': authType,
     });
     await insertHistory(email, 'Registered via $authType');
   }
 
-  /// Get user details (including section)
+  /// ✅ **Get user details (including section)**
   Future<Map<String, dynamic>?> getUser(String email) async {
     final db = await database;
     final result = await db.query(
@@ -103,7 +98,7 @@ class DatabaseHelper {
     return null;
   }
 
-  /// Get logged-in user details
+  /// ✅ **Get logged-in user details**
   Future<Map<String, dynamic>?> getLoggedInUser(String email) async {
     return await getUser(email);
   }
@@ -118,7 +113,7 @@ class DatabaseHelper {
     }
   }
 
-  /// Validate user credentials
+  /// ✅ **Validate user credentials**
   Future<bool> validateUser(String email, String password) async {
     final user = await getUser(email);
     if (user != null && user['password'] == password) {
@@ -128,16 +123,17 @@ class DatabaseHelper {
     return false;
   }
 
-  /// Update user details (including section)
+  /// ✅ **Update user details (including section)**
+  /// ✅ **Update user details (including section)**
   Future<int> updateUserDetails(
     String email,
     String newName,
     String newRegNo,
-    String newSection, // Added section
+    String newSection, // ✅ Added section
   ) async {
     final db = await database;
 
-    // Check if the user exists before updating
+    // ✅ Check if the user exists before updating
     final existingUser = await getUser(email);
     if (existingUser == null) {
       print("⚠️ User not found: $email");
@@ -150,7 +146,7 @@ class DatabaseHelper {
         {
           'name': newName,
           'regno': newRegNo,
-          'section': newSection, // Update section
+          'section': newSection, // ✅ Update section
         },
         where: 'email = ?',
         whereArgs: [email],
@@ -169,7 +165,7 @@ class DatabaseHelper {
     }
   }
 
-  /// Insert history entry
+  /// ✅ **Insert history entry**
   Future<void> insertHistory(String email, String action) async {
     final db = await database;
     await db.insert('history', {
@@ -179,7 +175,7 @@ class DatabaseHelper {
     });
   }
 
-  /// Fetch user history
+  /// ✅ **Fetch user history**
   Future<List<Map<String, dynamic>>> getUserHistory(String email) async {
     final db = await database;
     return await db.query(
@@ -190,7 +186,27 @@ class DatabaseHelper {
     );
   }
 
-  /// Reset password functionality
+  // Add this method to your DatabaseHelper class
+  Future<bool> updatePassword(String email, String newPassword) async {
+    try {
+      final db = await database;
+      // Update the password for the user with the given email
+      int updatedRows = await db.update(
+        'users', // Replace with your actual table name if different
+        {'password': newPassword},
+        where: 'email = ?',
+        whereArgs: [email],
+      );
+
+      // Return true if at least one row was updated
+      return updatedRows > 0;
+    } catch (e) {
+      print('Error updating password: $e');
+      return false;
+    }
+  }
+
+  /// ✅ **Reset password functionality**
   Future<void> resetPassword(String email, String newPassword) async {
     final db = await database;
     await db.update(
@@ -202,31 +218,9 @@ class DatabaseHelper {
     await insertHistory(email, 'Reset password');
   }
 
-  /// Logout function
+  /// ✅ **Logout function**
   Future<void> logout(String email) async {
     await insertHistory(email, 'Logged out');
     print("User logged out successfully!");
-  }
-
-  /// Update password - Used for forgot password feature
-  Future<bool> updatePassword(String email, String newPassword) async {
-    try {
-      final db = await database;
-      int count = await db.update(
-        'users',
-        {'password': newPassword},
-        where: 'email = ?',
-        whereArgs: [email],
-      );
-
-      if (count > 0) {
-        await insertHistory(email, 'Password updated via forgot password');
-        return true;
-      }
-      return false;
-    } catch (e) {
-      print('Error updating password: $e');
-      return false;
-    }
   }
 }
